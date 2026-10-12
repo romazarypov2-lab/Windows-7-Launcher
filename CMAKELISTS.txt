@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22.1)
+project("winexelauncher")
+
+find_library(log-lib log)
+
+add_library(exe_launcher SHARED exe_bridge.cpp)
+
+target_link_libraries(exe_launcher ${log-lib})
