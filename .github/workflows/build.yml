@@ -17,17 +17,15 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Create Complete Android Project Architecture
+      - name: Setup Android Project Files
         run: |
           mkdir -p app/src/main/java/com/winexelauncher/app
           mkdir -p app/src/main/cpp
           
-          # Перемещаем ваши исходные файлы кода в рабочую структуру папок
           [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/winexelauncher/app/MainActivity.kt
           [ -f exe_bridge.cpp ] && mv exe_bridge.cpp app/src/main/cpp/exe_bridge.cpp
           [ -f CMAKELISTS.txt ] && mv CMAKELISTS.txt app/src/main/cpp/CMakeLists.txt
           
-          # Создаем корректный манифест AndroidManifest.xml
           echo '<?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://android.com" package="com.winexelauncher.app">
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -46,7 +44,6 @@ jobs:
               </application>
           </manifest>' > app/src/main/AndroidManifest.xml
 
-          # Создаем правильный скрипт сборки модуля app/build.gradle
           echo 'plugins {
               id "com.android.application"
               id "org.jetbrains.kotlin.android"
@@ -60,20 +57,14 @@ jobs:
                   targetSdk 34
                   versionCode 1
                   versionName "1.0"
-                  externalNativeBuild { cmake { cppFlags "" } }
+                  externalNativeBuild { cmake { path "src/main/cpp/CMakeLists.txt" } }
               }
               buildTypes { release { minifyEnabled false } }
-              externalNativeBuild { cmake { path "src/main/cpp/CMakeLists.txt" } }
-              kotlinOptions { jvmTarget = "17" }
-          }
-          dependencies {
-              implementation "androidx.appcompat:appcompat:1.6.1"
           }' > app/build.gradle
 
-          # Настраиваем корневой build.gradle с репозиториями
           echo "buildscript {
               repositories { google(); mavenCentral() }
-              dependencies { 
+              dependencies {
                   classpath 'com.android.tools.build:gradle:8.2.2'
                   classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
               }
@@ -82,29 +73,19 @@ jobs:
               repositories { google(); mavenCentral() }
           }" > build.gradle
 
-          # Создаем settings.gradle с правильным подключением репозиториев для плагинов
-          echo "pluginManagement {
-              repositories { google(); mavenCentral(); gradlePluginPortal() }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories { google(); mavenCentral() }
-          }
-          include ':app'" > settings.gradle
-
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle 8.5 Environment
+      - name: Setup Stable Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
-      - name: Compile Application APK
+      - name: Compile APK
         run: |
-          gradle :app:assembleDebug
+          gradle app:assembleDebug
 
-      - name: Upload Finished APK File
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: windows-7-launcher-apk
