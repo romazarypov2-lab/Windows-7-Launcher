@@ -17,18 +17,67 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Create Minimal Android Project Structure
+        run: |
+          mkdir -p app/src/main/java/com/winexelauncher/app
+          mkdir -p app/src/main/cpp
+          
+          [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/winexelauncher/app/MainActivity.kt
+          [ -f exe_bridge.cpp ] && mv exe_bridge.cpp app/src/main/cpp/exe_bridge.cpp
+          [ -f CMAKELISTS.txt ] && mv CMAKELISTS.txt app/src/main/cpp/CMakeLists.txt
+          
+          echo '<?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://android.com" package="com.winexelauncher.app">
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+              <application android:allowBackup="false" android:label="Windows 7 Launcher" android:theme="@style/Theme.AppCompat.NoActionBar">
+                  <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleInstance" android:clearTaskOnLaunch="true" android:stateNotNeeded="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.HOME" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+                  <receiver android:name=".BootReceiver" android:enabled="true" android:exported="true">
+                      <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
+                  </receiver>
+              </application>
+          </manifest>' > app/src/main/AndroidManifest.xml
+
+          echo 'plugins {
+              id "com.android.application"
+              id "org.jetbrains.kotlin.android"
+          }
+          android {
+              namespace "com.winexelauncher.app"
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.winexelauncher.app"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+                  externalNativeBuild { cmake { cppFlags "" } }
+              }
+              buildTypes { release { minifyEnabled false } }
+              externalNativeBuild { cmake { path "src/main/cpp/CMakeLists.txt" } }
+              kotlinOptions { jvmTarget = "17" }
+          }' > app/build.gradle
+
+          echo "include ':app'" > settings.gradle
+          echo "buildscript { dependencies { classpath 'com.android.tools.build:gradle:8.2.2'; classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22' } }" > build.gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Build Android Debug APK
         run: |
-          echo "Инициализация сборки..."
-          # Робот автоматически создаст минимальную структуру проекта Gradle вокруг вашего кода и скомпилирует APK
-          # Здесь запускается виртуальная сборка Kotlin и C++ через CMake
+          gradle wrapper --gradle-version 8.5
+          ./gradlew assembleDebug
 
       - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
           name: windows-7-launcher-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+          path: "app/build/outputs/apk/debug/*.apk"
           
