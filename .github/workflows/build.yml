@@ -67,8 +67,13 @@ jobs:
           echo "include ':app'" > settings.gradle
           echo "buildscript { dependencies { classpath 'com.android.tools.build:gradle:8.2.2'; classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22' } }" > build.gradle
 
-      - name: Setup Gradle
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle 8.5
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
 
       - name: Build Android Debug APK
         run: |
