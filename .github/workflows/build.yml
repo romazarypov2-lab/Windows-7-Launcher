@@ -17,19 +17,21 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Create Minimal Android Project Structure
+      - name: Create Complete Android Project Architecture
         run: |
           mkdir -p app/src/main/java/com/winexelauncher/app
           mkdir -p app/src/main/cpp
           
+          # Перемещаем ваши исходные файлы кода в рабочую структуру папок
           [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/winexelauncher/app/MainActivity.kt
           [ -f exe_bridge.cpp ] && mv exe_bridge.cpp app/src/main/cpp/exe_bridge.cpp
           [ -f CMAKELISTS.txt ] && mv CMAKELISTS.txt app/src/main/cpp/CMakeLists.txt
           
+          # Создаем корректный манифест AndroidManifest.xml
           echo '<?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://android.com" package="com.winexelauncher.app">
               <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-              <application android:allowBackup="false" android:label="Windows 7 Launcher" android:theme="@style/Theme.AppCompat.NoActionBar">
+              <application android:allowBackup="false" android:label="Windows 7 Launcher" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
                   <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleInstance" android:clearTaskOnLaunch="true" android:stateNotNeeded="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -44,6 +46,7 @@ jobs:
               </application>
           </manifest>' > app/src/main/AndroidManifest.xml
 
+          # Создаем правильный скрипт сборки модуля app/build.gradle
           echo 'plugins {
               id "com.android.application"
               id "org.jetbrains.kotlin.android"
@@ -62,24 +65,46 @@ jobs:
               buildTypes { release { minifyEnabled false } }
               externalNativeBuild { cmake { path "src/main/cpp/CMakeLists.txt" } }
               kotlinOptions { jvmTarget = "17" }
+          }
+          dependencies {
+              implementation "androidx.appcompat:appcompat:1.6.1"
           }' > app/build.gradle
 
-          echo "include ':app'" > settings.gradle
-          echo "buildscript { dependencies { classpath 'com.android.tools.build:gradle:8.2.2'; classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22' } }" > build.gradle
+          # Настраиваем корневой build.gradle с репозиториями
+          echo "buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { 
+                  classpath 'com.android.tools.build:gradle:8.2.2'
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.22'
+              }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }" > build.gradle
+
+          # Создаем settings.gradle с правильным подключением репозиториев для плагинов
+          echo "pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          include ':app'" > settings.gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Setup Gradle 8.5
+      - name: Setup Gradle 8.5 Environment
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
-      - name: Build Android Debug APK
+      - name: Compile Application APK
         run: |
-          gradle assembleDebug
+          gradle :app:assembleDebug
 
-      - name: Upload Finished APK
+      - name: Upload Finished APK File
         uses: actions/upload-artifact@v4
         with:
           name: windows-7-launcher-apk
